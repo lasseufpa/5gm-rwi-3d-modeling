@@ -1,6 +1,8 @@
-import numpy as np
+import os
 import copy
 import re
+
+import numpy as np
 
 MAX_LEN_NAME = 71
 
@@ -51,10 +53,10 @@ class SubStructure(BaseObject):
 
     def Serialize(self):
         mstr = ''
-        mstr += 'begin_<sub_structure> \r\n {}'.format(self.name)
+        mstr += 'begin_<sub_structure> \n {}'.format(self.name)
         for face in self.face_list:
             mstr += face.Serialize()
-        mstr += 'end_<sub_structure>\r\n'
+        mstr += 'end_<sub_structure>\n'
         return mstr
 
     def from_file(infile):
@@ -102,10 +104,10 @@ class Structure(BaseObject):
 
     def Serialize(self):
         mstr = ''
-        mstr += 'begin_<structure> {}\r\n'.format(self.name)
+        mstr += 'begin_<structure> {}\n'.format(self.name)
         for sub_structure in self._sub_structure_list:
             mstr += sub_structure.Serialize()
-        mstr += 'end_<structure>\r\n'
+        mstr += 'end_<structure>\n'
         return mstr
 
     def from_file(infile):
@@ -159,9 +161,9 @@ class Face(BaseObject):
         
     def Serialize(self):
         mstr = ''
-        mstr += 'begin_<face> {}\r\n'.format(self.name)
-        mstr += 'Material {}\r\n'.format(self.material)
-        mstr += 'nVertices {}\r\n'.format(self.n_vertices)
+        mstr += 'begin_<face> {}\n'.format(self.name)
+        mstr += 'Material {}\n'.format(self.material)
+        mstr += 'nVertices {}\n'.format(self.n_vertices)
         # sort vertices in descending order on 'z', 'y', 'x'
         #self._vertices = self._vertices[
         #    np.lexsort((
@@ -170,8 +172,8 @@ class Face(BaseObject):
         #        self._vertices[::-1,2],
         #    ))]
         for v in self._vertices:
-            mstr += '{:.10f} {:.10f} {:.10f}\r\n'.format(*v)
-        mstr += 'end_<face>\r\n'
+            mstr += '{:.10f} {:.10f} {:.10f}\n'.format(*v)
+        mstr += 'end_<face>\n'
         return mstr
 
     def from_file(infile):
@@ -282,39 +284,39 @@ def match_or_error(exp, infile):
 class ObjectFile():
 
     _default_head = (
-        'Format type:keyword version: 1.1.0\r\n' +
-        'begin_<object> Untitled Model\r\n' +
-        'begin_<reference> \r\n' +
-        'cartesian\r\n' +
-        'longitude 0.000000000000000\r\n' +
-        'latitude 0.000000000000000\r\n' +
-        'visible no\r\n' +
-        'sealevel\r\n' +
-        'end_<reference>\r\n' +
-        'begin_<Material> Metal\r\n' +
-        'Material 0\r\n' +
-        'PEC\r\n' +
-        'thickness 0.000e+000\r\n' +
-        'begin_<Color> \r\n' +
-        'ambient 0.600000 0.600000 0.600000 1.000000\r\n' +
-        'diffuse 0.600000 0.600000 0.600000 1.000000\r\n' +
-        'specular 0.600000 0.600000 0.600000 1.000000\r\n' +
-        'emission 0.000000 0.000000 0.000000 0.000000\r\n' +
-        'shininess 75.000000\r\n' +
-        'end_<Color>\r\n' +
-        'diffuse_scattering_model none\r\n' +
-        'fields_diffusively_scattered 0.400000\r\n' +
-        'cross_polarized_power 0.400000\r\n' +
-        'directive_alpha 4\r\n' +
-        'directive_beta 4\r\n' +
-        'directive_lambda 0.750000\r\n' +
-        'subdivide_facets yes\r\n' +
-        'reflection_coefficient_options do_not_use\r\n' +
-        'roughness 0.000e+000\r\n' +
-        'end_<Material>\r\n'
+        'Format type:keyword version: 1.1.0\n' +
+        'begin_<object> Untitled Model\n' +
+        'begin_<reference> \n' +
+        'cartesian\n' +
+        'longitude 0.000000000000000\n' +
+        'latitude 0.000000000000000\n' +
+        'visible no\n' +
+        'sealevel\n' +
+        'end_<reference>\n' +
+        'begin_<Material> Metal\n' +
+        'Material 0\n' +
+        'PEC\n' +
+        'thickness 0.000e+000\n' +
+        'begin_<Color> \n' +
+        'ambient 0.600000 0.600000 0.600000 1.000000\n' +
+        'diffuse 0.600000 0.600000 0.600000 1.000000\n' +
+        'specular 0.600000 0.600000 0.600000 1.000000\n' +
+        'emission 0.000000 0.000000 0.000000 0.000000\n' +
+        'shininess 75.000000\n' +
+        'end_<Color>\n' +
+        'diffuse_scattering_model none\n' +
+        'fields_diffusively_scattered 0.400000\n' +
+        'cross_polarized_power 0.400000\n' +
+        'directive_alpha 4\n' +
+        'directive_beta 4\n' +
+        'directive_lambda 0.750000\n' +
+        'subdivide_facets yes\n' +
+        'reflection_coefficient_options do_not_use\n' +
+        'roughness 0.000e+000\n' +
+        'end_<Material>\n'
     )
     _default_tail = (
-        'end_<object>\r\n'
+        'end_<object>\n'
     )
 
     def __init__(self, name='', head=None, tail=None):
@@ -357,7 +359,7 @@ class ObjectFile():
             if re.match(StructureGroup._begin_re, line):
                 return
             infile.readline()
-            self._head += line[:-1] + '\r\n'
+            self._head += line
 
     def _parse_tail(self, infile):
         self._tail = ''
@@ -366,7 +368,7 @@ class ObjectFile():
             if line == '':
                 break
             else:
-                self._tail += line[:-1] + '\r\n'
+                self._tail += line
 
     def from_file(infile):
         inst = ObjectFile(infile.name)
@@ -413,10 +415,10 @@ class StructureGroup(BaseObject):
 
     def Serialize(self):
         mstr = ''
-        mstr += 'begin_<structure_group> {}\r\n'.format(self.name)
+        mstr += 'begin_<structure_group> {}\n'.format(self.name)
         for structure in self._structure_list:
             mstr += structure.Serialize()
-        mstr += 'end_<structure_group>\r\n'
+        mstr += 'end_<structure_group>\n'
         return mstr
 
 def look_next_line(infile):
@@ -425,13 +427,18 @@ def look_next_line(infile):
     infile.seek(now)
     return line
 
-
 if __name__=='__main__':
 #    car = RectangularPrism(4.54, 1.76, 1.47, material=0)
 #    car_obj = ObjectFile('car-api.object')
 #    car_obj.add_structures(car)
 #    car_obj.write()
 #    print(car_obj.Serialize())
-    with open('car-hand.object') as infile:
+    dst = os.path.join(os.path.dirname(os.path.realpath(__file__)),
+                       'example', 'car-handmade-copy.object')
+    ori = os.path.join(os.path.dirname(os.path.realpath(__file__)),
+                       'example', 'car-handmade.object')
+    with open(ori) as infile,\
+            open(dst, 'w', newline='\r\n') as outfile:
         obj = ObjectFile.from_file(infile)
-        print(obj.Serialize(), end='')
+        outfile.write(obj.Serialize())
+    print('Wrote "{}" to "{}"'.format(ori, dst))
