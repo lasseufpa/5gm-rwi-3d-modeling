@@ -4,6 +4,12 @@ import re
 
 import numpy as np
 
+# TODO: calculate dimentions as most distant points in each dimension
+'''TODO: define more features in the BaseObject, for example it could
+         have a list for container objects, define serialize and translate
+         base methods
+'''
+
 MAX_LEN_NAME = 71
 
 
@@ -15,6 +21,7 @@ class BaseObject():
     def __init__(self, name='', material=0):
         self.material = material
         self.name = name
+        self.dimensions = None
 
     @property
     def name(self):
@@ -280,6 +287,7 @@ class RectangularPrism(SubStructure):
         right.invert_direction()
 
         self.add_faces([top, bottom, front, back, left, right])
+        self.dimensions = np.array((length, width, height))
 
 
 def match_or_error(exp, infile):
@@ -357,7 +365,7 @@ class ObjectFile():
         return mstr
 
     def write(self):
-        with open(self.name, 'w') as dst_file:
+        with open(self.name, 'w', newline='\r\n') as dst_file:
             dst_file.write(self.Serialize())
 
     def _parse_head(self, infile):
