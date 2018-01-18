@@ -6,8 +6,10 @@ import numpy as np
 
 MAX_LEN_NAME = 71
 
+
 class FormatError(Exception):
     pass
+
 
 class BaseObject():
     def __init__(self, name='', material=0):
@@ -17,7 +19,7 @@ class BaseObject():
     @property
     def name(self):
         return self._name
-    
+
     @name.setter
     def name(self, name):
         if len(name) > MAX_LEN_NAME:
@@ -26,27 +28,28 @@ class BaseObject():
         else:
             self._name = name
 
-class SubStructure(BaseObject):
 
+class SubStructure(BaseObject):
     _begin_re = r'^\s*begin_<sub_structure>\s+(?P<sstname>.*)\s*$'
     _end_re = r'^\s*end_<sub_structure>\s*$'
 
     def __init__(self, name='', material=0):
         BaseObject.__init__(self, name, material)
         self._face_list = list()
-        
+
     def add_faces(self, faces):
         def _check_and_add_face(face):
             if not isinstance(face, Face):
                 raise FormatError(
                     'Object is not a Face {}'.format(face))
             self._face_list.append(face)
+
         try:
             for face in faces:
                 _check_and_add_face(face)
         except TypeError:
             _check_and_add_face(faces)
-            
+
     def translate(self, v):
         for face in self._face_list:
             face.translate(v)
@@ -76,27 +79,28 @@ class SubStructure(BaseObject):
                 infile.readline()
                 return inst
 
-class Structure(BaseObject):
 
+class Structure(BaseObject):
     _begin_re = r'^\s*begin_<structure>\s+(?P<stname>.*)\s*$'
     _end_re = r'^\s*end_<structure>\s*$'
 
     def __init__(self, name='', material=0):
         BaseObject.__init__(self, name, material)
         self._sub_structure_list = list()
-        
+
     def add_sub_structures(self, sub_structures):
         def _check_and_add_sub_structure(sub_structure):
             if not isinstance(sub_structure, SubStructure):
                 raise FormatError(
                     'Object is not a SubStructure {}'.format(sub_structure))
             self._sub_structure_list.append(sub_structure)
+
         try:
             for sub_structure in sub_structures:
                 _check_and_add_sub_structure(sub_structure)
         except TypeError:
             _check_and_add_sub_structure(sub_structures)
-            
+
     def translate(self, v):
         for sub_structure in self._sub_structure_list:
             sub_structure.translate(v)
@@ -130,9 +134,9 @@ class Structure(BaseObject):
             else:
                 infile.readline()
                 return inst
-        
-class Face(BaseObject):
 
+
+class Face(BaseObject):
     _begin_re = r'^\s*begin_<face>\s+(?P<fname>.*)\s*$'
     _end_re = r'^\s*end_<face>\s*$'
     _material_re = r'\s*Material\s+(?P<mid>\d+)\s*$'
@@ -142,7 +146,7 @@ class Face(BaseObject):
         BaseObject.__init__(self, name)
         self._vertices = None
         self.material = material
-    
+
     @property
     def n_vertices(self):
         return len(self._vertices)
@@ -152,7 +156,7 @@ class Face(BaseObject):
 
     def translate(self, v):
         self._vertices += v
-    
+
     def add_vertice(self, v):
         if len(v) != 3:
             raise FormatError('Vertices must have 3 coordenates (x, y, z)')
@@ -161,14 +165,14 @@ class Face(BaseObject):
         else:
             self._vertices = np.concatenate(
                 [self._vertices, np.array(v, ndmin=2)])
-        
+
     def Serialize(self):
         mstr = ''
         mstr += 'begin_<face> {}\n'.format(self.name)
         mstr += 'Material {}\n'.format(self.material)
         mstr += 'nVertices {}\n'.format(self.n_vertices)
         # sort vertices in descending order on 'z', 'y', 'x'
-        #self._vertices = self._vertices[
+        # self._vertices = self._vertices[
         #    np.lexsort((
         #        self._vertices[::-1,0],
         #        self._vertices[::-1,1],
@@ -196,12 +200,14 @@ class Face(BaseObject):
         match_or_error(Face._end_re, infile)
         return inst
 
+
 class RectangularPrism(SubStructure):
     """Rectangular prism
     attention has to be made to the order of the vertices,
     maybe it has something to do with the direction of the "movement"
     to define the "outside" of the object
     """
+
     def __init__(self, length, width, height, name='', material=1):
         SubStructure.__init__(self, name, material)
         self._length = length
@@ -235,7 +241,7 @@ class RectangularPrism(SubStructure):
     def height(self, height):
         self._height = height
         self._make()
-        
+
     def _make(self):
         length = self.length
         width = self.width
@@ -245,35 +251,36 @@ class RectangularPrism(SubStructure):
         bottom.add_vertice((length, width, 0))
         bottom.add_vertice((length, 0,     0))
         bottom.add_vertice((0,      0,     0))
-        
+
         top = copy.deepcopy(bottom)
         top.name = 'top'
         top.translate((0, 0, height))
         top.invert_direction()
-        
+
         front = Face('front', material=self.material)
         front.add_vertice((0,      width, height))
         front.add_vertice((length, width, height))
         front.add_vertice((length, width, 0     ))
         front.add_vertice((0,      width, 0     ))
-        
+
         back = copy.deepcopy(front)
         back.name = 'back'
         back.translate((0, -width, 0))
         back.invert_direction()
-        
+
         left = Face('left', material=self.material)
         left.add_vertice((0, 0,     height))
         left.add_vertice((0, width, height))
         left.add_vertice((0, width, 0     ))
         left.add_vertice((0, 0,     0     ))
-        
+
         right = copy.deepcopy(left)
         right.name = 'right'
         right.translate((length, 0, 0))
         right.invert_direction()
-        
+
         self.add_faces([top, bottom, front, back, left, right])
+
 
 def match_or_error(exp, infile):
     line = infile.readline()
@@ -284,8 +291,8 @@ def match_or_error(exp, infile):
         raise FormatError(
             'Excpected "{}", found "{}"'.format(exp, line))
 
-class ObjectFile():
 
+class ObjectFile():
     _default_head = (
         'Format type:keyword version: 1.1.0\n' +
         'begin_<object> Untitled Model\n' +
@@ -334,6 +341,7 @@ class ObjectFile():
                 raise FormatError(
                     'Object is not a Structure {}'.format(structure_group))
             self._structure_group_list.append(structure_group)
+
         try:
             for structure_group in structure_groups:
                 _check_and_add_structure_group(structure_group)
@@ -385,8 +393,8 @@ class ObjectFile():
         for structure_group in self._structure_group_list:
             structure_group.translate(v)
 
-class StructureGroup(BaseObject):
 
+class StructureGroup(BaseObject):
     _begin_re = r'^\s*begin_<structure_group>\s+(?P<name>.*)\s*$'
     _end_re = r'^\s*end_<structure_group>\s*$'
 
@@ -400,6 +408,7 @@ class StructureGroup(BaseObject):
                 raise FormatError(
                     'Object is not a SubStructure {}'.format(structure))
             self._structure_list.append(structure)
+
         try:
             for structure in structures:
                 _check_and_add_structure(structure)
@@ -432,23 +441,25 @@ class StructureGroup(BaseObject):
         mstr += 'end_<structure_group>\n'
         return mstr
 
+
 def look_next_line(infile):
     now = infile.tell()
     line = infile.readline()
     infile.seek(now)
     return line
 
-if __name__=='__main__':
-#    car = RectangularPrism(4.54, 1.76, 1.47, material=0)
-#    car_obj = ObjectFile('car-api.object')
-#    car_obj.add_structures(car)
-#    car_obj.write()
-#    print(car_obj.Serialize())
+
+if __name__ == '__main__':
+    #car = RectangularPrism(4.54, 1.76, 1.47, material=0)
+    #car_obj = ObjectFile('car-api.object')
+    #car_obj.add_structures(car)
+    #car_obj.write()
+    #print(car_obj.Serialize())
     dst = os.path.join(os.path.dirname(os.path.realpath(__file__)),
                        'example', 'car-handmade-copy.object')
     ori = os.path.join(os.path.dirname(os.path.realpath(__file__)),
                        'example', 'car-handmade.object')
-    with open(ori) as infile,\
+    with open(ori) as infile, \
             open(dst, 'w', newline='\r\n') as outfile:
         obj = ObjectFile.from_file(infile)
         obj.translate((10, 0, 0))
