@@ -1,5 +1,6 @@
 import numpy as np
 import copy
+import re
 
 MAX_LEN_NAME = 71
 
@@ -22,8 +23,12 @@ class BaseObject():
                 'Max len for name is {}'.format(MAX_LEN_NAME))
         else:
             self._name = name
-        
-class Structure(BaseObject):
+
+class SubStructure(BaseObject):
+
+    _begin_re = r'^\s*begin_<sub_structure>\s+(?P<sstname>.*)\s*$'
+    _end_re = r'^\s*end_<sub_structure>\s*$'
+
     def __init__(self, name='', material=0):
         BaseObject.__init__(self, name, material)
         self.face_list = list()
@@ -46,15 +51,88 @@ class Structure(BaseObject):
 
     def Serialize(self):
         mstr = ''
-        mstr += 'begin_<structure> {}\r\n'.format(self.name)
-        mstr += 'begin_<sub_structure> \r\n '
+        mstr += 'begin_<sub_structure> \r\n {}'.format(self.name)
         for face in self.face_list:
             mstr += face.Serialize()
         mstr += 'end_<sub_structure>\r\n'
+        return mstr
+
+    def from_file(infile):
+        inst = SubStructure()
+        line = infile.readline()
+        begin_match = re.match(SubStructure._begin_re,
+                               line)
+        if not begin_match:
+            raise FormatError(
+                'Expected start of sub_structure, found "{}"'.format(line))
+        inst.name = begin_match.group('sstname')
+        while True:
+            line = look_next_line(infile)
+            if not re.match(SubStructure._end_re, line):
+                face = Face.from_file(infile)
+                inst.add_faces(face)
+            else:
+                infile.readline()
+                return inst
+
+class Structure(BaseObject):
+
+    _begin_re = r'^\s*begin_<structure>\s+(?P<stname>.*)\s*$'
+    _end_re = r'^\s*end_<structure>\s*$'
+
+    def __init__(self, name='', material=0):
+        BaseObject.__init__(self, name, material)
+        self._sub_structure_list = list()
+        
+    def add_sub_structures(self, sub_structures):
+        def _check_and_add_sub_structure(sub_structure):
+            if not isinstance(sub_structure, SubStructure):
+                raise FormatError(
+                    'Object is not a SubStructure {}'.format(sub_structure))
+            self._sub_structure_list.append(sub_structure)
+        try:
+            for sub_structure in sub_structures:
+                _check_and_add_sub_structure(sub_structure)
+        except TypeError:
+            _check_and_add_sub_structure(sub_structures)
+            
+    def translate(self, v):
+        for sub_structure in self._sub_structure_list:
+            sub_structure.translate(v)
+
+    def Serialize(self):
+        mstr = ''
+        mstr += 'begin_<structure> {}\r\n'.format(self.name)
+        for sub_structure in self._sub_structure_list:
+            mstr += sub_structure.Serialize()
         mstr += 'end_<structure>\r\n'
         return mstr
+
+    def from_file(infile):
+        inst = Structure()
+        line = infile.readline()
+        begin_match = re.match(Structure._begin_re,
+                               line)
+        if not begin_match:
+            raise FormatError(
+                'Expected start of structure, found "{}"'.format(line))
+        inst.name = begin_match.group('stname')
+        while True:
+            line = look_next_line(infile)
+            if not re.match(Structure._end_re, line):
+                sub = SubStructure.from_file(infile)
+                inst.add_sub_structures(sub)
+            else:
+                infile.readline()
+                return inst
         
 class Face(BaseObject):
+
+    _begin_re = r'^\s*begin_<face>\s+(?P<fname>.*)\s*$'
+    _end_re = r'^\s*end_<face>\s*$'
+    _material_re = r'\s*Material\s+(?P<mid>\d+)\s*$'
+    _n_vertices_re = r'\s*nVertices\s+(?P<nv>\d+)\s*$'
+
     def __init__(self, name='', material=0):
         BaseObject.__init__(self, name)
         self._vertices = None
@@ -95,15 +173,32 @@ class Face(BaseObject):
             mstr += '{:.10f} {:.10f} {:.10f}\r\n'.format(*v)
         mstr += 'end_<face>\r\n'
         return mstr
-    
-class RectangularPrism(Structure):
+
+    def from_file(infile):
+        inst = Face()
+
+        begin_match = match_or_error(Face._begin_re, infile)
+        inst.name = begin_match.group('fname')
+        material_match = match_or_error(Face._material_re, infile)
+        inst.material = material_match.group('mid')
+        n_vertices_match = match_or_error(Face._n_vertices_re, infile)
+        n_vertices = int(n_vertices_match.group('nv'))
+
+        for v in range(n_vertices):
+            line = infile.readline()
+            inst.add_vertice([float(i) for i in line.split()])
+
+        match_or_error(Face._end_re, infile)
+        return inst
+
+class RectangularPrism(SubStructure):
     """Rectangular prism
     attention has to be made to the order of the vertices,
     maybe it has something to do with the direction of the "movement"
     to define the "outside" of the object
     """
     def __init__(self, length, width, height, name='', material=1):
-        Structure.__init__(self, name, material)
+        SubStructure.__init__(self, name, material)
         self._length = length
         self._width = width
         self._height = height
@@ -175,16 +270,126 @@ class RectangularPrism(Structure):
         
         self.add_faces([top, bottom, front, back, left, right])
 
+def match_or_error(exp, infile):
+    line = infile.readline()
+    match = re.match(exp, line)
+    if match:
+        return match
+    else:
+        raise FormatError(
+            'Excpected "{}", found "{}"'.format(exp, line))
+
 class ObjectFile():
-    def __init__(self, name=None):
+
+    _default_head = (
+        'Format type:keyword version: 1.1.0\r\n' +
+        'begin_<object> Untitled Model\r\n' +
+        'begin_<reference> \r\n' +
+        'cartesian\r\n' +
+        'longitude 0.000000000000000\r\n' +
+        'latitude 0.000000000000000\r\n' +
+        'visible no\r\n' +
+        'sealevel\r\n' +
+        'end_<reference>\r\n' +
+        'begin_<Material> Metal\r\n' +
+        'Material 0\r\n' +
+        'PEC\r\n' +
+        'thickness 0.000e+000\r\n' +
+        'begin_<Color> \r\n' +
+        'ambient 0.600000 0.600000 0.600000 1.000000\r\n' +
+        'diffuse 0.600000 0.600000 0.600000 1.000000\r\n' +
+        'specular 0.600000 0.600000 0.600000 1.000000\r\n' +
+        'emission 0.000000 0.000000 0.000000 0.000000\r\n' +
+        'shininess 75.000000\r\n' +
+        'end_<Color>\r\n' +
+        'diffuse_scattering_model none\r\n' +
+        'fields_diffusively_scattered 0.400000\r\n' +
+        'cross_polarized_power 0.400000\r\n' +
+        'directive_alpha 4\r\n' +
+        'directive_beta 4\r\n' +
+        'directive_lambda 0.750000\r\n' +
+        'subdivide_facets yes\r\n' +
+        'reflection_coefficient_options do_not_use\r\n' +
+        'roughness 0.000e+000\r\n' +
+        'end_<Material>\r\n'
+    )
+    _default_tail = (
+        'end_<object>\r\n'
+    )
+
+    def __init__(self, name='', head=None, tail=None):
         self.name = name
-        self._structure_list = []
+        self._head = ObjectFile._default_head if head is None else head
+        self._tail = ObjectFile._default_tail if tail is None else tail
+        self._structure_group_list = []
+
+    def add_structure_groups(self, structure_groups):
+        def _check_and_add_structure_group(structure_group):
+            if not isinstance(structure_group, StructureGroup):
+                raise FormatError(
+                    'Object is not a Structure {}'.format(structure_group))
+            self._structure_group_list.append(structure_group)
+        try:
+            for structure_group in structure_groups:
+                _check_and_add_structure_group(structure_group)
+        except TypeError:
+            _check_and_add_structure_group(structure_groups)
+
+    def Serialize(self):
+        mstr = ''
+        mstr += self._head
+        for structure_group in self._structure_group_list:
+            mstr += structure_group.Serialize()
+        mstr += self._tail
+        return mstr
+
+    def write(self):
+        with open(self.name, 'w') as dst_file:
+            dst_file.write(self.Serialize())
+
+    def _parse_head(self, infile):
+        self._head = ''
+        while True:
+            line = look_next_line(infile)
+            if line == '':
+                raise FormatError(
+                    'Could not find "{}"'.format(StructureGroup._begin_re))
+            if re.match(StructureGroup._begin_re, line):
+                return
+            infile.readline()
+            self._head += line[:-1] + '\r\n'
+
+    def _parse_tail(self, infile):
+        self._tail = ''
+        while True:
+            line = infile.readline()
+            if line == '':
+                break
+            else:
+                self._tail += line[:-1] + '\r\n'
+
+    def from_file(infile):
+        inst = ObjectFile(infile.name)
+        inst._parse_head(infile)
+        structure_group = StructureGroup.from_file(infile)
+        inst._parse_tail(infile)
+        inst.add_structure_groups(structure_group)
+        return inst
+
+class StructureGroup(BaseObject):
+
+    _begin_re = r'^\s*begin_<structure_group>\s+(?P<name>.*)\s*$'
+    _end_re = r'^\s*end_<structure_group>\s*$'
+
+    def __init__(self, name='', material=0):
+        BaseObject.__init__(self, name, material)
+        self._structure_list = list()
 
     def add_structures(self, structures):
         def _check_and_add_structure(structure):
             if not isinstance(structure, Structure):
                 raise FormatError(
-                    'Object is not a Structure {}'.format(structure))
+                    'Object is not a SubStructure {}'.format(structure))
             self._structure_list.append(structure)
         try:
             for structure in structures:
@@ -192,52 +397,41 @@ class ObjectFile():
         except TypeError:
             _check_and_add_structure(structures)
 
+    def from_file(infile):
+        inst = StructureGroup()
+        begin_match = match_or_error(StructureGroup._begin_re, infile)
+        inst.name = begin_match.group('name')
+
+        while True:
+            line = look_next_line(infile)
+            if not re.match(StructureGroup._end_re, line):
+                structure = Structure.from_file(infile)
+                inst.add_structures(structure)
+            else:
+                infile.readline()
+                return inst
+
     def Serialize(self):
         mstr = ''
-        mstr += 'Format type:keyword version: 1.1.0\r\n'
-        mstr += 'begin_<object> Untitled Model\r\n'
-        mstr += 'begin_<reference> \r\n'
-        mstr += 'cartesian\r\n'
-        mstr += 'longitude 0.000000000000000\r\n'
-        mstr += 'latitude 0.000000000000000\r\n'
-        mstr += 'visible no\r\n'
-        mstr += 'sealevel\r\n'
-        mstr += 'end_<reference>\r\n'
-        mstr += 'begin_<Material> Metal\r\n'
-        mstr += 'Material 0\r\n'
-        mstr += 'PEC\r\n'
-        mstr += 'thickness 0.000e+000\r\n'
-        mstr += 'begin_<Color> \r\n'
-        mstr += 'ambient 0.600000 0.600000 0.600000 1.000000\r\n'
-        mstr += 'diffuse 0.600000 0.600000 0.600000 1.000000\r\n'
-        mstr += 'specular 0.600000 0.600000 0.600000 1.000000\r\n'
-        mstr += 'emission 0.000000 0.000000 0.000000 0.000000\r\n'
-        mstr += 'shininess 75.000000\r\n'
-        mstr += 'end_<Color>\r\n'
-        mstr += 'diffuse_scattering_model none\r\n'
-        mstr += 'fields_diffusively_scattered 0.400000\r\n'
-        mstr += 'cross_polarized_power 0.400000\r\n'
-        mstr += 'directive_alpha 4\r\n'
-        mstr += 'directive_beta 4\r\n'
-        mstr += 'directive_lambda 0.750000\r\n'
-        mstr += 'subdivide_facets yes\r\n'
-        mstr += 'reflection_coefficient_options do_not_use\r\n'
-        mstr += 'roughness 0.000e+000\r\n'
-        mstr += 'end_<Material>\r\n'
-        mstr += 'begin_<structure_group> \r\n'
+        mstr += 'begin_<structure_group> {}\r\n'.format(self.name)
         for structure in self._structure_list:
             mstr += structure.Serialize()
         mstr += 'end_<structure_group>\r\n'
-        mstr += 'end_<object>\r\n'
         return mstr
 
-    def write(self):
-        with open(self.name, 'w') as dst_file:
-            dst_file.write(self.Serialize())
+def look_next_line(infile):
+    now = infile.tell()
+    line = infile.readline()
+    infile.seek(now)
+    return line
+
 
 if __name__=='__main__':
-    car = RectangularPrism(4.54, 1.76, 1.47, material=0)
-    car_obj = ObjectFile('car-api.object')
-    car_obj.add_structures(car)
-    car_obj.write()
+#    car = RectangularPrism(4.54, 1.76, 1.47, material=0)
+#    car_obj = ObjectFile('car-api.object')
+#    car_obj.add_structures(car)
+#    car_obj.write()
 #    print(car_obj.Serialize())
+    with open('car-hand.object') as infile:
+        obj = ObjectFile.from_file(infile)
+        print(obj.Serialize(), end='')
