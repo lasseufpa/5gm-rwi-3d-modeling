@@ -53,7 +53,7 @@ class SubStructure(BaseObject):
 
     def Serialize(self):
         mstr = ''
-        mstr += 'begin_<sub_structure> \n {}'.format(self.name)
+        mstr += 'begin_<sub_structure> {}\n'.format(self.name)
         for face in self.face_list:
             mstr += face.Serialize()
         mstr += 'end_<sub_structure>\n'
