@@ -41,7 +41,7 @@ class Structure(BaseObject):
             self.face_list.append(faces)
             
     def translate(self, v):
-        for face in face_list:
+        for face in self.face_list:
             face.translate(v)
 
     def Serialize(self):
@@ -126,5 +126,6 @@ class RectangularPrism(Structure):
         self.add_faces([top, bottom, front, back, left, right])
 
 if __name__=='__main__':
-    car = RectangularPrism(4.54, 1.76, 1.47, material=0)
+    car = RectangularPrism(400.54, 100.76, 100.47, material=0)
+    car.translate((2,2,2))
     print(car.Serialize())
