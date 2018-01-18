@@ -104,10 +104,43 @@ class RectangularPrism(Structure):
     """
     def __init__(self, length, width, height, name='', material=1):
         Structure.__init__(self, name, material)
-        self._make(length, width, height)
+        self._length = length
+        self._width = width
+        self._height = height
+        self._make()
+
+    @property
+    def length(self):
+        return self._length
+
+    @property
+    def width(self):
+        return self._width
+
+    @property
+    def height(self):
+        return self._height
+
+    @length.setter
+    def length(self, length):
+        self._length = length
+        self._make()
+
+    @width.setter
+    def width(self, width):
+        self._width = width
+        self._make()
+
+    @height.setter
+    def height(self, height):
+        self._height = height
+        self._make()
         
-    def _make(self, length, width, height):
-        bottom = Face('botom', material=self.material)
+    def _make(self):
+        length = self.length
+        width = self.width
+        height = self.height
+        bottom = Face('bottom', material=self.material)
         bottom.add_vertice((0,      width, 0))
         bottom.add_vertice((length, width, 0))
         bottom.add_vertice((length, 0,     0))
@@ -199,12 +232,12 @@ class ObjectFile():
         return mstr
 
     def write(self):
-        with open(self.name + '.object', 'w') as dst_file:
+        with open(self.name, 'w') as dst_file:
             dst_file.write(self.Serialize())
 
 if __name__=='__main__':
     car = RectangularPrism(4.54, 1.76, 1.47, material=0)
-    car_obj = ObjectFile('car-api')
+    car_obj = ObjectFile('car-api.object')
     car_obj.add_structures(car)
     car_obj.write()
 #    print(car_obj.Serialize())
