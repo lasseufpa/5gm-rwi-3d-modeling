@@ -33,14 +33,14 @@ class SubStructure(BaseObject):
 
     def __init__(self, name='', material=0):
         BaseObject.__init__(self, name, material)
-        self.face_list = list()
+        self._face_list = list()
         
     def add_faces(self, faces):
         def _check_and_add_face(face):
             if not isinstance(face, Face):
                 raise FormatError(
                     'Object is not a Face {}'.format(face))
-            self.face_list.append(face)
+            self._face_list.append(face)
         try:
             for face in faces:
                 _check_and_add_face(face)
@@ -48,13 +48,13 @@ class SubStructure(BaseObject):
             _check_and_add_face(faces)
             
     def translate(self, v):
-        for face in self.face_list:
+        for face in self._face_list:
             face.translate(v)
 
     def Serialize(self):
         mstr = ''
         mstr += 'begin_<sub_structure> {}\n'.format(self.name)
-        for face in self.face_list:
+        for face in self._face_list:
             mstr += face.Serialize()
         mstr += 'end_<sub_structure>\n'
         return mstr
@@ -62,8 +62,7 @@ class SubStructure(BaseObject):
     def from_file(infile):
         inst = SubStructure()
         line = infile.readline()
-        begin_match = re.match(SubStructure._begin_re,
-                               line)
+        begin_match = re.match(SubStructure._begin_re, line)
         if not begin_match:
             raise FormatError(
                 'Expected start of sub_structure, found "{}"'.format(line))
@@ -109,6 +108,10 @@ class Structure(BaseObject):
             mstr += sub_structure.Serialize()
         mstr += 'end_<structure>\n'
         return mstr
+
+    def translate(self, v):
+        for sub_structure in self._sub_structure_list:
+            sub_structure.translate(v)
 
     def from_file(infile):
         inst = Structure()
@@ -378,6 +381,10 @@ class ObjectFile():
         inst.add_structure_groups(structure_group)
         return inst
 
+    def translate(self, v):
+        for structure_group in self._structure_group_list:
+            structure_group.translate(v)
+
 class StructureGroup(BaseObject):
 
     _begin_re = r'^\s*begin_<structure_group>\s+(?P<name>.*)\s*$'
@@ -413,6 +420,10 @@ class StructureGroup(BaseObject):
                 infile.readline()
                 return inst
 
+    def translate(self, v):
+        for structure in self._structure_list:
+            structure.translate(v)
+
     def Serialize(self):
         mstr = ''
         mstr += 'begin_<structure_group> {}\n'.format(self.name)
@@ -440,5 +451,6 @@ if __name__=='__main__':
     with open(ori) as infile,\
             open(dst, 'w', newline='\r\n') as outfile:
         obj = ObjectFile.from_file(infile)
+        obj.translate((10, 0, 0))
         outfile.write(obj.Serialize())
     print('Wrote "{}" to "{}"'.format(ori, dst))
