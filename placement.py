@@ -1,7 +1,9 @@
 import copy
+import os
 
 import numpy as np
 
+import errors
 import objects
 
 def rand(start, finish):
@@ -20,7 +22,7 @@ def place_on_line(origin, destination, dim, space, object):
 
     origin = np.array(origin)
     if object.dimensions is None:
-        raise objects.FormatError('"{}" has no dimensions'.format(object))
+        raise errors.FormatError('"{}" has no dimensions'.format(object))
 
     structure_group = objects.StructureGroup()
     structure_group.name = object.name + ' in line'
@@ -39,7 +41,7 @@ def place_on_line(origin, destination, dim, space, object):
         new_object = copy.deepcopy(object)
         new_object.name += '{:03d}'.format(n_obj)
         # the origin of the new object
-        new_object_origin = np.zeros((3))
+        new_object_origin = origin
         new_object_origin[dim] = last_obj_loc
         # move object to the new origin
         new_object.translate(new_object_origin)
@@ -50,9 +52,13 @@ def place_on_line(origin, destination, dim, space, object):
         n_obj += 1
     return structure_group
 
-obj = objects.ObjectFile("random-line.object")
+#obj = objects.ObjectFile("random-line")
+with open("SimpleFunciona/base.object") as infile:
+    obj = objects.ObjectFile.from_file(infile)
+obj.clear()
 
-car = objects.RectangularPrism(4.54, 1.76, 1.47, material=0)
+#car = objects.RectangularPrism(4.54, 1.76, 1.47, material=0)
+car = objects.RectangularPrism(1.76, 4.54, 1.47, material=0)
 car_structure = objects.Structure("car")
 car_structure.add_sub_structures(car)
 car_structure.dimensions = car.dimensions
@@ -60,11 +66,11 @@ car_structure.dimensions = car.dimensions
 #structure_group.add_structures(car_structure)
 
 #obj.add_structure_groups(structure_group)
-obj.write()
+
 #print(obj.Serialize())
 
 
 structure_group = place_on_line(
-    (0, 5, 0), 100, 0, lambda: rand(3, 10), car_structure)
+    (648, 456, 0.2), 731, 1, lambda: rand(1, 3), car_structure)
 obj.add_structure_groups(structure_group)
-obj.write()
+obj.write(os.path.join("SimpleFunciona/random-line.object"))

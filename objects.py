@@ -1,8 +1,12 @@
-import os
 import copy
+import os
 import re
 
 import numpy as np
+
+from errors import FormatError
+from utils import look_next_line, match_or_error
+from verticelist import VerticeList
 
 # TODO: calculate dimentions as most distant points in each dimension
 '''TODO: define more features in the BaseObject, for example it could
@@ -11,10 +15,6 @@ import numpy as np
 '''
 
 MAX_LEN_NAME = 71
-
-
-class FormatError(Exception):
-    pass
 
 
 class BaseObject():
@@ -143,50 +143,21 @@ class Structure(BaseObject):
                 return inst
 
 
-class Face(BaseObject):
+class Face(BaseObject, VerticeList):
     _begin_re = r'^\s*begin_<face>\s+(?P<fname>.*)\s*$'
     _end_re = r'^\s*end_<face>\s*$'
     _material_re = r'\s*Material\s+(?P<mid>\d+)\s*$'
-    _n_vertices_re = r'\s*nVertices\s+(?P<nv>\d+)\s*$'
 
     def __init__(self, name='', material=0):
         BaseObject.__init__(self, name)
-        self._vertices = None
+        VerticeList.__init__(self)
         self.material = material
-
-    @property
-    def n_vertices(self):
-        return len(self._vertices)
-
-    def invert_direction(self):
-        self._vertices = np.flip(self._vertices, 0)
-
-    def translate(self, v):
-        self._vertices += v
-
-    def add_vertice(self, v):
-        if len(v) != 3:
-            raise FormatError('Vertices must have 3 coordenates (x, y, z)')
-        if self._vertices is None:
-            self._vertices = np.array(v, ndmin=2)
-        else:
-            self._vertices = np.concatenate(
-                [self._vertices, np.array(v, ndmin=2)])
 
     def Serialize(self):
         mstr = ''
         mstr += 'begin_<face> {}\n'.format(self.name)
         mstr += 'Material {}\n'.format(self.material)
-        mstr += 'nVertices {}\n'.format(self.n_vertices)
-        # sort vertices in descending order on 'z', 'y', 'x'
-        # self._vertices = self._vertices[
-        #    np.lexsort((
-        #        self._vertices[::-1,0],
-        #        self._vertices[::-1,1],
-        #        self._vertices[::-1,2],
-        #    ))]
-        for v in self._vertices:
-            mstr += '{:.10f} {:.10f} {:.10f}\n'.format(*v)
+        mstr += VerticeList.serialize(self)
         mstr += 'end_<face>\n'
         return mstr
 
@@ -197,12 +168,8 @@ class Face(BaseObject):
         inst.name = begin_match.group('fname')
         material_match = match_or_error(Face._material_re, infile)
         inst.material = material_match.group('mid')
-        n_vertices_match = match_or_error(Face._n_vertices_re, infile)
-        n_vertices = int(n_vertices_match.group('nv'))
 
-        for v in range(n_vertices):
-            line = infile.readline()
-            inst.add_vertice([float(i) for i in line.split()])
+        VerticeList.from_file(infile, inst)
 
         match_or_error(Face._end_re, infile)
         return inst
@@ -290,16 +257,6 @@ class RectangularPrism(SubStructure):
         self.dimensions = np.array((length, width, height))
 
 
-def match_or_error(exp, infile):
-    line = infile.readline()
-    match = re.match(exp, line)
-    if match:
-        return match
-    else:
-        raise FormatError(
-            'Excpected "{}", found "{}"'.format(exp, line))
-
-
 class ObjectFile():
     _default_head = (
         'Format type:keyword version: 1.1.0\n' +
@@ -355,6 +312,9 @@ class ObjectFile():
                 _check_and_add_structure_group(structure_group)
         except TypeError:
             _check_and_add_structure_group(structure_groups)
+
+    def clear(self):
+        self._structure_group_list = []
 
     def Serialize(self):
         mstr = ''
@@ -450,13 +410,6 @@ class StructureGroup(BaseObject):
         return mstr
 
 
-def look_next_line(infile):
-    now = infile.tell()
-    line = infile.readline()
-    infile.seek(now)
-    return line
-
-
 if __name__ == '__main__':
     #car = RectangularPrism(4.54, 1.76, 1.47, material=0)
     #car_obj = ObjectFile('car-api.object')
@@ -467,9 +420,8 @@ if __name__ == '__main__':
                        'example', 'car-handmade-copy.object')
     ori = os.path.join(os.path.dirname(os.path.realpath(__file__)),
                        'example', 'car-handmade.object')
-    with open(ori) as infile, \
-            open(dst, 'w', newline='\r\n') as outfile:
+    with open(ori) as infile:
         obj = ObjectFile.from_file(infile)
-        obj.translate((10, 0, 0))
-        outfile.write(obj.Serialize())
+        #obj.translate((10, 0, 0))
+    obj.write(dst)
     print('Wrote "{}" to "{}"'.format(ori, dst))
