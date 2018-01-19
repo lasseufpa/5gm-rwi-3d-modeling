@@ -364,8 +364,8 @@ class ObjectFile():
         mstr += self._tail
         return mstr
 
-    def write(self):
-        with open(self.name, 'w', newline='\r\n') as dst_file:
+    def write(self, filename):
+        with open(filename, 'w', newline='\r\n') as dst_file:
             dst_file.write(self.Serialize())
 
     def _parse_head(self, infile):
