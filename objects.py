@@ -9,10 +9,6 @@ from utils import look_next_line, match_or_error
 from verticelist import VerticeList
 
 # TODO: calculate dimentions as most distant points in each dimension
-'''TODO: define more features in the BaseObject, for example it could
-         have a list for container objects, define serialize and translate
-         base methods
-'''
 
 MAX_LEN_NAME = 71
 
@@ -36,111 +32,225 @@ class BaseObject():
             self._name = name
 
 
-class SubStructure(BaseObject):
-    _begin_re = r'^\s*begin_<sub_structure>\s+(?P<sstname>.*)\s*$'
-    _end_re = r'^\s*end_<sub_structure>\s*$'
+class BaseContainerObject(BaseObject):
 
-    def __init__(self, name='', material=0):
-        BaseObject.__init__(self, name, material)
-        self._face_list = list()
+    def __init__(self, child_type, **kargs):
+        BaseObject.__init__(self, **kargs)
+        # list of child entities
+        self._child_list = []
+        # type of child entities
+        self._child_type = child_type
+        # define the first line of the entity (assumes the header has only one line)
+        self._begin_re = None
+        # define the end of the entity header used only if _begin_re is None
+        self._end_header_re = None
+        # define when start parsing the entity tail
+        self._begin_tail_re = None
+        # define the end of entity, it None the entity ends in the end of the file
+        # (if _begin_tail_re is not defined it is required)
+        self._end_re = None
+        # default header and tail strings
+        self._header_str = None
+        self._tail_str = None
 
-    def add_faces(self, faces):
-        def _check_and_add_face(face):
-            if not isinstance(face, Face):
+    @property
+    def _header(self):
+        return self._header_str
+
+    @property
+    def _tail(self):
+        return self._tail_str
+
+    def append(self, children):
+        """Append an element to the container
+
+        :param children: instance or iterator of instances of _child_type
+        :return:
+        """
+        # only allow insertion of typed elements
+        if self._child_type is None:
+            raise NotImplementedError()
+
+        def _check_and_add_child(child):
+            if (not isinstance(child, self._child_type)):
                 raise FormatError(
-                    'Object is not a Face {}'.format(face))
-            self._face_list.append(face)
-
+                    'Object is not a "{}" "{}"'.format(
+                        self._child_type, child))
+            self._child_list.append(child)
         try:
-            for face in faces:
-                _check_and_add_face(face)
+            for child in children:
+                _check_and_add_child(child)
+        # if children can not be iterated assumes it is a instance of _child_type
         except TypeError:
-            _check_and_add_face(faces)
+            _check_and_add_child(children)
+
+    def clear(self):
+        self._child_list = []
 
     def translate(self, v):
-        for face in self._face_list:
-            face.translate(v)
+        for child in self._child_list:
+            child.translate(v)
 
-    def Serialize(self):
+    def serialize(self):
         mstr = ''
-        mstr += 'begin_<sub_structure> {}\n'.format(self.name)
-        for face in self._face_list:
-            mstr += face.Serialize()
-        mstr += 'end_<sub_structure>\n'
+        mstr += self._header
+        for child in self._child_list:
+            mstr += child.serialize()
+        mstr += self._tail
         return mstr
+
+    def write(self, filename):
+        with open(filename, 'w', newline='\r\n') as dst_file:
+            dst_file.write(self.serialize())
+
+    def _parse_head(self, infile):
+        """Parse the start of the entity
+
+        if _begin_re is defined read only the first line which must match _begin_re
+        if _begin_re is not defined read until _end_header_re is found
+
+        :param infile: opened input file
+        :return:
+        """
+        self._header_str = ''
+        # if _begin_re is defined it must match the first line and the processing ends
+        if self._begin_re is not None:
+            match_or_error(self._begin_re, infile)
+        # if _begin_re is not defined read until _end_header_re
+        elif self._end_header_re is not None:
+            while True:
+                line = look_next_line(infile)
+                if line == '':
+                    raise FormatError(
+                        'Could not find "{}"'.format(self._end_header_re)
+                    )
+                if re.match(self._end_header_re, line):
+                    break
+                self._header_str += line
+                # consumes the line
+                infile.readline()
+
+        else:
+            raise NotImplementedError()
+
+    def _parse_tail(self, infile):
+        """Parse the end of the entity
+
+        read the file until _end_re is found and save in _tail_str
+        if _end_re is None the file is read until its end
+
+        :param infile: opened input file
+        :return:
+        """
+        self._tail_str = ''
+        while True:
+            line = infile.readline()
+            self._tail_str += line
+            if line == '':
+                # if in end of file is reached and _end_re was not found
+                if self._end_re is not None:
+                    raise FormatError(
+                        'Could not find "{}"'.format(self._end_re)
+                    )
+                # if _end_re is None the procesing ends
+                else:
+                    break
+            # if _end_re is defined, search for it
+            if self._end_re is not None:
+                if re.match(self._end_re, line):
+                    break
+
+    def from_file(self, infile):
+        """Parse entity
+
+        Parse the head and then find childs defined by:
+            * if _begin_tail is defined calls _parse_tail when _begin_tail is matched
+            * if _begin_tail is None _end_re must be defined and children are parsed until it is found
+
+        :param infile: opened input file
+        :return: entity instance
+        """
+        # consumes the entity header
+        self._parse_head(infile)
+        while True:
+            line = look_next_line(infile)
+            # are we searching for the beginning of the tail
+            if self._begin_tail_re is not None:
+                if re.match(self._begin_tail_re, line):
+                    self._parse_tail(infile)
+                    break
+            # if not we have to search for the end of the entity
+            elif self._end_re is not None:
+                if re.match(self._end_re, line):
+                    infile.readline()
+                    break
+            # if it is not the start of the tail nor the end of the entity,
+            # it is a child entity
+            child = self._child_type.from_file(infile)
+            self.append(child)
+
+class SubStructure(BaseContainerObject):
+
+    def __init__(self, **kargs):
+        BaseContainerObject.__init__(self, Face, **kargs)
+        self._begin_re = r'^\s*begin_<sub_structure>\s+(?P<sstname>.*)\s*$'
+        self._end_re = r'^\s*end_<sub_structure>\s*$'
+
+    def add_faces(self, faces):
+        self.append(faces)
+
+    @property
+    def _header(self):
+        header_str = ''
+        header_str += 'begin_<sub_structure> {}\n'.format(self.name)
+        return header_str
+
+    @property
+    def _tail(self):
+        tail_str = ''
+        tail_str += 'end_<sub_structure>\n'
+        return tail_str
+
+    def _parse_head(self, infile):
+        match = match_or_error(self._begin_re, infile)
+        self.name = match.group('sstname')
 
     def from_file(infile):
         inst = SubStructure()
-        line = infile.readline()
-        begin_match = re.match(SubStructure._begin_re, line)
-        if not begin_match:
-            raise FormatError(
-                'Expected start of sub_structure, found "{}"'.format(line))
-        inst.name = begin_match.group('sstname')
-        while True:
-            line = look_next_line(infile)
-            if not re.match(SubStructure._end_re, line):
-                face = Face.from_file(infile)
-                inst.add_faces(face)
-            else:
-                infile.readline()
-                return inst
+        BaseContainerObject.from_file(inst, infile)
+        return inst
 
 
-class Structure(BaseObject):
-    _begin_re = r'^\s*begin_<structure>\s+(?P<stname>.*)\s*$'
-    _end_re = r'^\s*end_<structure>\s*$'
+class Structure(BaseContainerObject):
 
-    def __init__(self, name='', material=0):
-        BaseObject.__init__(self, name, material)
-        self._sub_structure_list = list()
+    def __init__(self, **kargs):
+        BaseContainerObject.__init__(self, SubStructure, **kargs)
+        self._begin_re = r'^\s*begin_<structure>\s+(?P<stname>.*)\s*$'
+        self._end_re = r'^\s*end_<structure>\s*$'
+
+    @property
+    def _header(self):
+        header_str = ''
+        header_str += 'begin_<structure> {}\n'.format(self.name)
+        return header_str
+
+    @property
+    def _tail(self):
+        tail_str = ''
+        tail_str += 'end_<structure>\n'
+        return tail_str
 
     def add_sub_structures(self, sub_structures):
-        def _check_and_add_sub_structure(sub_structure):
-            if not isinstance(sub_structure, SubStructure):
-                raise FormatError(
-                    'Object is not a SubStructure {}'.format(sub_structure))
-            self._sub_structure_list.append(sub_structure)
+        self.append(sub_structures)
 
-        try:
-            for sub_structure in sub_structures:
-                _check_and_add_sub_structure(sub_structure)
-        except TypeError:
-            _check_and_add_sub_structure(sub_structures)
-
-    def translate(self, v):
-        for sub_structure in self._sub_structure_list:
-            sub_structure.translate(v)
-
-    def Serialize(self):
-        mstr = ''
-        mstr += 'begin_<structure> {}\n'.format(self.name)
-        for sub_structure in self._sub_structure_list:
-            mstr += sub_structure.Serialize()
-        mstr += 'end_<structure>\n'
-        return mstr
-
-    def translate(self, v):
-        for sub_structure in self._sub_structure_list:
-            sub_structure.translate(v)
+    def _parse_head(self, infile):
+        match = match_or_error(self._begin_re, infile)
+        self.name = match.group('stname')
 
     def from_file(infile):
         inst = Structure()
-        line = infile.readline()
-        begin_match = re.match(Structure._begin_re,
-                               line)
-        if not begin_match:
-            raise FormatError(
-                'Expected start of structure, found "{}"'.format(line))
-        inst.name = begin_match.group('stname')
-        while True:
-            line = look_next_line(infile)
-            if not re.match(Structure._end_re, line):
-                sub = SubStructure.from_file(infile)
-                inst.add_sub_structures(sub)
-            else:
-                infile.readline()
-                return inst
+        BaseContainerObject.from_file(inst, infile)
+        return inst
 
 
 class Face(BaseObject, VerticeList):
@@ -153,7 +263,7 @@ class Face(BaseObject, VerticeList):
         VerticeList.__init__(self)
         self.material = material
 
-    def Serialize(self):
+    def serialize(self):
         mstr = ''
         mstr += 'begin_<face> {}\n'.format(self.name)
         mstr += 'Material {}\n'.format(self.material)
@@ -257,7 +367,7 @@ class RectangularPrism(SubStructure):
         self.dimensions = np.array((length, width, height))
 
 
-class ObjectFile():
+class ObjectFile(BaseContainerObject):
     _default_head = (
         'Format type:keyword version: 1.1.0\n' +
         'begin_<object> Untitled Model\n' +
@@ -294,120 +404,54 @@ class ObjectFile():
         'end_<object>\n'
     )
 
-    def __init__(self, name='', head=None, tail=None):
-        self.name = name
-        self._head = ObjectFile._default_head if head is None else head
-        self._tail = ObjectFile._default_tail if tail is None else tail
-        self._structure_group_list = []
+    def __init__(self, name=None, head=None, tail=None):
+        BaseContainerObject.__init__(self, StructureGroup, name=name)
+        self._head_str = ObjectFile._default_head if head is None else head
+        self._tail_str = ObjectFile._default_tail if tail is None else tail
+        self._end_header_re = StructureGroup._begin_re
+        self._begin_tail_re = r'^\s*end_<object>\s*$'
 
     def add_structure_groups(self, structure_groups):
-        def _check_and_add_structure_group(structure_group):
-            if not isinstance(structure_group, StructureGroup):
-                raise FormatError(
-                    'Object is not a Structure {}'.format(structure_group))
-            self._structure_group_list.append(structure_group)
-
-        try:
-            for structure_group in structure_groups:
-                _check_and_add_structure_group(structure_group)
-        except TypeError:
-            _check_and_add_structure_group(structure_groups)
-
-    def clear(self):
-        self._structure_group_list = []
-
-    def Serialize(self):
-        mstr = ''
-        mstr += self._head
-        for structure_group in self._structure_group_list:
-            mstr += structure_group.Serialize()
-        mstr += self._tail
-        return mstr
-
-    def write(self, filename):
-        with open(filename, 'w', newline='\r\n') as dst_file:
-            dst_file.write(self.Serialize())
-
-    def _parse_head(self, infile):
-        self._head = ''
-        while True:
-            line = look_next_line(infile)
-            if line == '':
-                raise FormatError(
-                    'Could not find "{}"'.format(StructureGroup._begin_re))
-            if re.match(StructureGroup._begin_re, line):
-                return
-            infile.readline()
-            self._head += line
-
-    def _parse_tail(self, infile):
-        self._tail = ''
-        while True:
-            line = infile.readline()
-            if line == '':
-                break
-            else:
-                self._tail += line
+        self.append(structure_groups)
 
     def from_file(infile):
-        inst = ObjectFile(infile.name)
-        inst._parse_head(infile)
-        structure_group = StructureGroup.from_file(infile)
-        inst._parse_tail(infile)
-        inst.add_structure_groups(structure_group)
+        inst = ObjectFile(os.path.basename(infile.name))
+        BaseContainerObject.from_file(inst, infile)
         return inst
 
-    def translate(self, v):
-        for structure_group in self._structure_group_list:
-            structure_group.translate(v)
 
+class StructureGroup(BaseContainerObject):
 
-class StructureGroup(BaseObject):
     _begin_re = r'^\s*begin_<structure_group>\s+(?P<name>.*)\s*$'
-    _end_re = r'^\s*end_<structure_group>\s*$'
 
-    def __init__(self, name='', material=0):
-        BaseObject.__init__(self, name, material)
-        self._structure_list = list()
+    def __init__(self, **kargs):
+        BaseContainerObject.__init__(self, Structure, **kargs)
+        self._begin_re = StructureGroup._begin_re
+        self._end_re = r'^\s*end_<structure_group>\s*$'
 
     def add_structures(self, structures):
-        def _check_and_add_structure(structure):
-            if not isinstance(structure, Structure):
-                raise FormatError(
-                    'Object is not a SubStructure {}'.format(structure))
-            self._structure_list.append(structure)
+        self.append(structures)
 
-        try:
-            for structure in structures:
-                _check_and_add_structure(structure)
-        except TypeError:
-            _check_and_add_structure(structures)
+    def _parse_head(self, infile):
+        begin_match = match_or_error(self._begin_re, infile)
+        self.name = begin_match.group('name')
 
     def from_file(infile):
         inst = StructureGroup()
-        begin_match = match_or_error(StructureGroup._begin_re, infile)
-        inst.name = begin_match.group('name')
+        BaseContainerObject.from_file(inst, infile)
+        return inst
 
-        while True:
-            line = look_next_line(infile)
-            if not re.match(StructureGroup._end_re, line):
-                structure = Structure.from_file(infile)
-                inst.add_structures(structure)
-            else:
-                infile.readline()
-                return inst
+    @property
+    def _header(self):
+        header_str = ''
+        header_str += 'begin_<structure_group> {}\n'.format(self.name)
+        return header_str
 
-    def translate(self, v):
-        for structure in self._structure_list:
-            structure.translate(v)
-
-    def Serialize(self):
-        mstr = ''
-        mstr += 'begin_<structure_group> {}\n'.format(self.name)
-        for structure in self._structure_list:
-            mstr += structure.Serialize()
-        mstr += 'end_<structure_group>\n'
-        return mstr
+    @property
+    def _tail(self):
+        tail_str = ''
+        tail_str += 'end_<structure_group>\n'
+        return tail_str
 
 
 if __name__ == '__main__':
@@ -415,13 +459,13 @@ if __name__ == '__main__':
     #car_obj = ObjectFile('car-api.object')
     #car_obj.add_structures(car)
     #car_obj.write()
-    #print(car_obj.Serialize())
+    #print(car_obj.serialize())
     dst = os.path.join(os.path.dirname(os.path.realpath(__file__)),
                        'example', 'car-handmade-copy.object')
     ori = os.path.join(os.path.dirname(os.path.realpath(__file__)),
                        'example', 'car-handmade.object')
     with open(ori) as infile:
         obj = ObjectFile.from_file(infile)
-        #obj.translate((10, 0, 0))
+        obj.translate((10, 5, 3))
     obj.write(dst)
     print('Wrote "{}" to "{}"'.format(ori, dst))
