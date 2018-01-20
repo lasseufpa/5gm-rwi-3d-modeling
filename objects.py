@@ -160,6 +160,10 @@ class BaseContainerObject(BaseObject):
                 if re.match(self._end_re, line):
                     break
 
+    def _parse_content(self, infile):
+        child = self._child_type.from_file(infile)
+        self.append(child)
+
     def from_file(self, infile):
         """Parse entity
 
@@ -186,8 +190,7 @@ class BaseContainerObject(BaseObject):
                     break
             # if it is not the start of the tail nor the end of the entity,
             # it is a child entity
-            child = self._child_type.from_file(infile)
-            self.append(child)
+            self._parse_content(infile)
 
 class SubStructure(BaseContainerObject):
 
