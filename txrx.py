@@ -10,6 +10,7 @@ class Location(VerticeList, BaseContainerObject):
         BaseContainerObject.__init__(self, None)
         self._end_header_re = VerticeList._begin_re
         self._end_re = r'^\s*end_<location>\s*$'
+        self.vertice_float_precision = 15
 
     @property
     def _content(self):
@@ -45,6 +46,10 @@ class TxRx(BaseContainerObject):
         inst = TxRx()
         BaseContainerObject.from_file(inst, infile)
         return inst
+
+    @property
+    def location_list(self):
+        return self._child_list
 
     def _parse_head(self, infile):
         # read the name (could read here any parameter of interest)
@@ -82,4 +87,6 @@ if __name__=='__main__':
     with open('SimpleFunciona/model.txrx') as infile:
         #print(Location.from_file(infile).serialize())
         #print(TxRx.from_file(infile).serialize())
-        print(TxRxFile.from_file(infile).serialize())
+        txrx = TxRxFile.from_file(infile)
+        txrx.serialize()
+        print(txrx['Rx'].location_list[0])

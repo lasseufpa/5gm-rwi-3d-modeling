@@ -77,6 +77,8 @@ class BaseContainerObject(BaseObject):
         # only allow insertion of typed elements
         if self._child_type is None:
             raise NotImplementedError()
+        if not isinstance(children, list):
+            children = [children]
 
         def _check_and_add_child(child):
             if (not isinstance(child, self._child_type)):
@@ -84,12 +86,8 @@ class BaseContainerObject(BaseObject):
                     'Object is not a "{}" "{}"'.format(
                         self._child_type, child))
             self._child_list.append(child)
-        try:
-            for child in children:
-                _check_and_add_child(child)
-        # if children can not be iterated assumes it is a instance of _child_type
-        except TypeError:
-            _check_and_add_child(children)
+        for child in children:
+            _check_and_add_child(child)
 
     def clear(self):
         self._child_list = []
@@ -169,6 +167,12 @@ class BaseContainerObject(BaseObject):
     def _parse_content(self, infile):
         child = self._child_type.from_file(infile)
         self.append(child)
+
+    def __getitem__(self, key):
+        for child in self._child_list:
+            if child.name == key:
+                return child
+        raise KeyError()
 
     def from_file(self, infile):
         """Parse entity
