@@ -47,7 +47,7 @@ class BaseContainerObject(BaseObject):
         # define when start parsing the entity tail
         self._begin_tail_re = None
         # define the end of entity, it None the entity ends in the end of the file
-        # (if _begin_tail_re is not defined it is required)
+        # (if _begin_tail_re is not defined it is required, the _tail must be implemented)
         self._end_re = None
         # default header and tail strings
         self._header_str = None
@@ -60,6 +60,13 @@ class BaseContainerObject(BaseObject):
     @property
     def _tail(self):
         return self._tail_str
+
+    @property
+    def _content(self):
+        content_str = ''
+        for child in self._child_list:
+            content_str += child.serialize()
+        return content_str
 
     def append(self, children):
         """Append an element to the container
@@ -94,8 +101,7 @@ class BaseContainerObject(BaseObject):
     def serialize(self):
         mstr = ''
         mstr += self._header
-        for child in self._child_list:
-            mstr += child.serialize()
+        mstr += self._content
         mstr += self._tail
         return mstr
 
