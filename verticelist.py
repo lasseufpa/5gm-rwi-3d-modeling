@@ -3,12 +3,23 @@ import numpy as np
 from errors import FormatError
 from utils import look_next_line, match_or_error
 
+
 class VerticeList():
 
     _begin_re = r'\s*nVertices\s+(?P<nv>\d+)\s*$'
 
     def __init__(self):
         self._vertice_array = None
+        self.vertice_float_precision = 10
+
+    @property
+    def vertice_float_precision(self):
+        return self._vertice_float_precision
+
+    @vertice_float_precision.setter
+    def vertice_float_precision(self, value):
+        self._vertice_float_precision = value
+        self._vertice_format_string = '{{:.{0}f}} {{:.{0}f}} {{:.{0}f}}\n'.format(value)
 
     @property
     def n_vertices(self):
@@ -26,14 +37,14 @@ class VerticeList():
         mstr = ''
         mstr += 'nVertices {}\n'.format(self.n_vertices)
         for v in self._vertice_array:
-            mstr += '{:.10f} {:.10f} {:.10f}\n'.format(*v)
+            mstr += self._vertice_format_string.format(*v)
         return mstr
 
     def add_vertice(self, v):
         if len(v) != 3:
             raise FormatError('Vertices must have 3 coordenates (x, y, z)')
         if self._vertice_array is None:
-            self._vertice_array = np.array(v, ndmin=2)
+            self._vertice_array = np.array(v, ndmin=2, dtype=np.float128)
         else:
             self._vertice_array = np.concatenate(
                 (self._vertice_array, np.array(v, ndmin=2)))
