@@ -5,11 +5,13 @@ import numpy as np
 
 import errors
 import objects
+import txrx
 
 def rand(start, finish):
     return start + (np.random.rand() * (finish - start))
 
-def place_on_line(origin, destination, dim, space, object):
+def place_on_line(origin, destination, dim, space, object,
+                  antenna=None, antenna_origin=None):
     """ Place object in a line separated by space
 
     :param origin: (x, y, z)
@@ -17,6 +19,8 @@ def place_on_line(origin, destination, dim, space, object):
     :param dim: 0, 1, 2 for x, y or z
     :param space: function that return the space between `object`
     :param object: a RWI Structure with "origin" in (0, 0, 0) (must have a valid dimension)
+    :param antanna_origin: (x, y, z) normally "inside" the object
+    :param antenna: VerticeList
     :return: a structure group
     """
 
@@ -26,6 +30,15 @@ def place_on_line(origin, destination, dim, space, object):
 
     structure_group = objects.StructureGroup()
     structure_group.name = object.name + ' in line'
+
+    if antenna is not None:
+        vertice_list = copy.deepcopy(antenna)
+        vertice_list.clear()
+        if antenna_origin is None:
+            vertice_list_origin = np.array(0, 0, 0)
+        else:
+            vertice_list_origin = np.array(antenna_origin)
+
 
     # position on `dim` accounting for all `object` and `space` placed
     last_obj_loc = origin[dim]
@@ -45,32 +58,37 @@ def place_on_line(origin, destination, dim, space, object):
         new_object_origin[dim] = last_obj_loc
         # move object to the new origin
         new_object.translate(new_object_origin)
+        if antenna is not None:
+            vertice_list.add_vertice(new_object_origin + vertice_list_origin)
         # add the new object to the structure group
         structure_group.add_structures(new_object)
         # where new objects should be placed
         last_obj_loc = new_object_origin[dim] + new_object.dimensions[dim] + space()
         n_obj += 1
-    return structure_group
+    if antenna is not None:
+        return structure_group, vertice_list
+    else:
+        return structure_group
 
-#obj = objects.ObjectFile("random-line")
-with open("SimpleFunciona/base.object") as infile:
+with open(os.path.join("SimpleFunciona", "base.object")) as infile:
     obj = objects.ObjectFile.from_file(infile)
+with open(os.path.join('SimpleFunciona', 'base.txrx')) as infile:
+    txrxFile = txrx.TxRxFile.from_file(infile)
 obj.clear()
 
-#car = objects.RectangularPrism(4.54, 1.76, 1.47, material=0)
 car = objects.RectangularPrism(1.76, 4.54, 1.47, material=0)
-car_structure = objects.Structure("car")
+car_structure = objects.Structure(name="car")
 car_structure.add_sub_structures(car)
 car_structure.dimensions = car.dimensions
-#structure_group = objects.StructureGroup()
-#structure_group.add_structures(car_structure)
 
-#obj.add_structure_groups(structure_group)
+city_origin = np.array((648, 456, 0.2))
+antenna_origin = np.array((car.height / 2, car.width / 2, car.height))
+antenna = txrxFile['Rx'].location_list[0]
 
-#print(obj.Serialize())
-
-
-structure_group = place_on_line(
-    (648, 456, 0.2), 731, 1, lambda: rand(1, 3), car_structure)
+structure_group, location = place_on_line(
+    city_origin, 731, 1, lambda: rand(1, 3), car_structure, antenna, antenna_origin)
 obj.add_structure_groups(structure_group)
-obj.write(os.path.join("SimpleFunciona/random-line.object"))
+obj.write(os.path.join("SimpleFunciona", "random-line.object"))
+
+txrxFile['Rx'].location_list[0] = location
+txrxFile.write(os.path.join('SimpleFunciona', 'model.txrx'))

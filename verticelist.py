@@ -40,6 +40,13 @@ class VerticeList():
             mstr += self._vertice_format_string.format(*v)
         return mstr
 
+    def clear(self):
+        self._vertice_array = None
+
+    @property
+    def vertice_array(self):
+        return self._vertice_array
+
     def add_vertice(self, v):
         if len(v) != 3:
             raise FormatError('Vertices must have 3 coordenates (x, y, z)')

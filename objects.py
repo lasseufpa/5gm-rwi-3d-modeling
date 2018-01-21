@@ -306,7 +306,7 @@ class RectangularPrism(SubStructure):
     """
 
     def __init__(self, length, width, height, name='', material=1):
-        SubStructure.__init__(self, name, material)
+        SubStructure.__init__(self, name=name, material=material)
         self._length = length
         self._width = width
         self._height = height
@@ -422,7 +422,8 @@ class ObjectFile(BaseContainerObject):
         self._head_str = ObjectFile._default_head if head is None else head
         self._tail_str = ObjectFile._default_tail if tail is None else tail
         self._end_header_re = StructureGroup._begin_re
-        self._begin_tail_re = r'^\s*end_<object>\s*$'
+        #self._begin_tail_re = r'^\s*end_<object>\s*$'
+        self._begin_tail_re = r'^\s*(?!begin_<structure_group>).*$'
 
     def add_structure_groups(self, structure_groups):
         self.append(structure_groups)

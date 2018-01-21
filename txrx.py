@@ -84,7 +84,7 @@ class TxRxFile(BaseContainerObject):
         return inst
 
 if __name__=='__main__':
-    with open('SimpleFunciona/model.txrx') as infile:
+    with open('example/model.txrx') as infile:
         #print(Location.from_file(infile).serialize())
         #print(TxRx.from_file(infile).serialize())
         txrx = TxRxFile.from_file(infile)
