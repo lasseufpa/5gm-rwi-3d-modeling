@@ -10,12 +10,25 @@ class InSiteProject:
     def __init__(self, path, output_dir, calcprop_bin=CALCPROP_BIN):
         """InSite project
         :param path: path to the .setup file
+        :param output_dir: where the .setup will store the results (normally the Study Area name)
+        :param calcprop_bin: the path to InSite's calcprop binary
         """
         self._path = path
         self._output_dir = output_dir
         self._calcprop_bin = calcprop_bin
 
     def run(self, calc_mode=None, clean_run=None, delete_temp=None, memory=None, output_dir=None):
+        """Run InSite simulation and store the results in output_dir
+
+        :param calc_mode: New, AddTransmitters, AddReceivers, ChangeHeights,
+                       ChangeFrequency, ChangeAntennas, ChangeMaterials,
+                       ChangeWalltypes, AddOutput, ConsolidateClusterRun
+        :param clean_run: clean and then recalculate all data files
+        :param delete_temp: after running, delete temporary data files
+        :param memory: <n+>[.[<n+>]]K/M/G e.g. 450.5M
+        :param output_dir: Move InSite's result to this path
+        :return: None
+        """
         cmd = ''
 
         def add_opt(opt, formatter):
