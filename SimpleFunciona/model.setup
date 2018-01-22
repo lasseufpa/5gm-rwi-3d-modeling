@@ -34,15 +34,14 @@ final_interaction_only yes
 end_<diffuse_scattering>
 autoboundary 1
 begin_<model> 
-x3d
-num_threads 4
-use_gpu Yes
-initial_ray_mode uniform_sweep
-foliage_model 0
-foliage_attenuation_vert 1
-foliage_attenuation_hor 1
+full3d
+raytracingmode sbr
+ray_spacing 1
 plane_wave_phase_reference automatic
 616.069 542.41 87.6583
+max_reflections 4
+max_transmissions 1
+max_wedge_diffractions 1
 begin_<OutputRequests> 
 CEF no
 ComplexImpulseResponse no
