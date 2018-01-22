@@ -51,7 +51,7 @@ class VerticeList():
         if len(v) != 3:
             raise FormatError('Vertices must have 3 coordenates (x, y, z)')
         if self._vertice_array is None:
-            self._vertice_array = np.array(v, ndmin=2, dtype=np.float128)
+            self._vertice_array = np.array(v, ndmin=2, dtype=np.longdouble)
         else:
             self._vertice_array = np.concatenate(
                 (self._vertice_array, np.array(v, ndmin=2)))
