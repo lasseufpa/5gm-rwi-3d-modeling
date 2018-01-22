@@ -7,9 +7,6 @@ import errors
 import objects
 import txrx
 
-def rand(start, finish):
-    return start + (np.random.rand() * (finish - start))
-
 def place_on_line(origin, destination, dim, space, object,
                   antenna=None, antenna_origin=None):
     """ Place object in a line separated by space
@@ -70,25 +67,27 @@ def place_on_line(origin, destination, dim, space, object,
     else:
         return structure_group
 
-with open(os.path.join("SimpleFunciona", "base.object")) as infile:
-    obj = objects.ObjectFile.from_file(infile)
-with open(os.path.join('SimpleFunciona', 'base.txrx')) as infile:
-    txrxFile = txrx.TxRxFile.from_file(infile)
-obj.clear()
+if __name__=='__main__':
 
-car = objects.RectangularPrism(1.76, 4.54, 1.47, material=0)
-car_structure = objects.Structure(name="car")
-car_structure.add_sub_structures(car)
-car_structure.dimensions = car.dimensions
+    with open(os.path.join("SimpleFunciona", "base.object")) as infile:
+        obj = objects.ObjectFile.from_file(infile)
+    with open(os.path.join('SimpleFunciona', 'base.txrx')) as infile:
+        txrxFile = txrx.TxRxFile.from_file(infile)
+    obj.clear()
 
-city_origin = np.array((648, 456, 0.2))
-antenna_origin = np.array((car.height / 2, car.width / 2, car.height))
-antenna = txrxFile['Rx'].location_list[0]
+    car = objects.RectangularPrism(1.76, 4.54, 1.47, material=0)
+    car_structure = objects.Structure(name="car")
+    car_structure.add_sub_structures(car)
+    car_structure.dimensions = car.dimensions
 
-structure_group, location = place_on_line(
-    city_origin, 731, 1, lambda: rand(1, 3), car_structure, antenna, antenna_origin)
-obj.add_structure_groups(structure_group)
-obj.write(os.path.join("SimpleFunciona", "random-line.object"))
+    city_origin = np.array((648, 456, 0.2))
+    antenna_origin = np.array((car.height / 2, car.width / 2, car.height))
+    antenna = txrxFile['Rx'].location_list[0]
 
-txrxFile['Rx'].location_list[0] = location
-txrxFile.write(os.path.join('SimpleFunciona', 'model.txrx'))
+    structure_group, location = place_on_line(
+        city_origin, 531, 1, lambda: np.random.uniform(1, 3), car_structure, antenna, antenna_origin)
+    obj.add_structure_groups(structure_group)
+    obj.write(os.path.join("SimpleFunciona", "random-line.object"))
+
+    txrxFile['Rx'].location_list[0] = location
+    txrxFile.write(os.path.join('SimpleFunciona', 'model.txrx'))
