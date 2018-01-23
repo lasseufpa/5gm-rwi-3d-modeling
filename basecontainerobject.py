@@ -166,6 +166,15 @@ class BaseContainerObject(BaseObject):
                 return child
         raise KeyError()
 
+    def __iter__(self):
+        return iter(self._child_list)
+
+    def keys(self):
+        keys = []
+        for child in self._child_list:
+            keys.append(child.name)
+        return keys
+
     def from_file(self, infile):
         """Parse entity
 
