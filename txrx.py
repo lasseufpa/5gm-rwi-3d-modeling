@@ -1,4 +1,4 @@
-from objects import BaseContainerObject
+from basecontainerobject import BaseContainerObject
 from utils import match_or_error
 from verticelist import VerticeList
 
