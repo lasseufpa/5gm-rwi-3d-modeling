@@ -1,7 +1,8 @@
-from basecontainerobject import BaseContainerObject
-from face import Face
-from utils import match_or_error
 import numpy as np
+
+from .basecontainerobject import BaseContainerObject
+from .face import Face
+from .utils import match_or_error
 
 try:
     from shapely import geometry# import asMultiPoint

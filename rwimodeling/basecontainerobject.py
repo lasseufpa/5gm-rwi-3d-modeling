@@ -1,9 +1,10 @@
 import re
 
-from errors import FormatError
-from utils import match_or_error, look_next_line
+from .errors import FormatError
+from .utils import match_or_error, look_next_line
 
 MAX_LEN_NAME = 71
+
 
 class BaseObject():
     def __init__(self, name='', material=0):

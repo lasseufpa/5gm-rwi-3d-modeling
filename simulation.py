@@ -3,10 +3,8 @@ import shutil
 
 import numpy as np
 
-import txrx
-import objects
 from placement import place_on_line
-import insite
+from rwimodeling import insite, objects, txrx
 
 if __name__ == '__main__':
     base_insite_project_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'SimpleFunciona')

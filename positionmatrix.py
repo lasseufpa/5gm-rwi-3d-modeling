@@ -1,9 +1,9 @@
 import os
 
 import numpy as np
-from shapely import geometry, affinity
+from shapely import geometry
 
-import objects
+from rwimodeling import objects
 
 
 def plot(polygon):
@@ -24,7 +24,7 @@ def matrix_plot(matrix):
     plt.show()
 
 
-def calc_position_matrix(bounds, polygon_list, resolution=0.1):
+def calc_position_matrix(bounds, polygon_list, resolution=1):
     """Represents the receivers and other objects in a position matrix
 
     :param bounds: (minx, miny, maxx, maxy) of the region to study
@@ -71,6 +71,6 @@ if __name__ == '__main__':
 
     point = geometry.Point((1,1))
     #print(point.within(all_polygon))
-    matrix = calc_position_matrix((643, 456, 653, 531), polygon_list)
+    matrix = calc_position_matrix((633, 456, 663, 531), polygon_list)
     print(matrix[0])
-    matrix_plot(matrix[10])
+    matrix_plot(matrix[1])

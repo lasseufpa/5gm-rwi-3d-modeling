@@ -1,7 +1,7 @@
 import numpy as np
 
-from errors import FormatError
-from utils import look_next_line, match_or_error
+from .errors import FormatError
+from .utils import match_or_error
 
 
 class VerticeList():

@@ -1,6 +1,6 @@
-from basecontainerobject import BaseContainerObject
-from utils import match_or_error
-from verticelist import VerticeList
+from .basecontainerobject import BaseContainerObject
+from .utils import match_or_error
+from .verticelist import VerticeList
 
 
 class Location(VerticeList, BaseContainerObject):

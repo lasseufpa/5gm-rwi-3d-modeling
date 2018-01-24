@@ -3,9 +3,8 @@ import os
 
 import numpy as np
 
-import errors
-import objects
-import txrx
+from rwimodeling import errors, objects, txrx
+
 
 def place_on_line(origin, destination, dim, space, object,
                   antenna=None, antenna_origin=None):

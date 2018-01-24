@@ -3,10 +3,11 @@ import os
 
 import numpy as np
 
-from basecontainerobject import BaseContainerObject
-from face import Face
-from substructure import SubStructure
-from utils import match_or_error
+from .basecontainerobject import BaseContainerObject
+from .face import Face
+from .substructure import SubStructure
+from .utils import match_or_error
+
 
 # TODO: calculate dimentions as most distant points in each dimension
 

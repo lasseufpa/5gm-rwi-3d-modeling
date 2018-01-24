@@ -1,8 +1,8 @@
-import tempfile
 import os
+import tempfile
 import unittest
 
-from txrx import TxRxFile
+from rwimodeling.txrx import TxRxFile
 
 EXAMPLE_DIR=os.path.dirname(os.path.realpath(__file__))
 INPUT_OBJ_FILE=os.path.join(EXAMPLE_DIR, '..', 'example',

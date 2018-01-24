@@ -1,8 +1,8 @@
-import tempfile
 import os
+import tempfile
 import unittest
 
-from objects import ObjectFile
+from rwimodeling.objects import ObjectFile
 
 EXAMPLE_DIR=os.path.dirname(os.path.realpath(__file__))
 INPUT_OBJ_FILE=os.path.join(EXAMPLE_DIR, '..', 'example',

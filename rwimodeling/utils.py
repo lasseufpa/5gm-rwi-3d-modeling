@@ -1,6 +1,6 @@
 import re
 
-from errors import FormatError
+from .errors import FormatError
 
 
 def look_next_line(infile):
