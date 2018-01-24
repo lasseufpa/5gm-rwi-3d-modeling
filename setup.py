@@ -2,7 +2,7 @@
 
 from distutils.core import setup
 
-setup(name='rwiparsing',
+setup(name='rwimodeling',
       version='1.0',
       description='Parsing of Remcom Wireless InSite .p2m files',
       author='LASSE',
