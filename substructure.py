@@ -3,7 +3,10 @@ from face import Face
 from utils import match_or_error
 import numpy as np
 
-from shapely import geometry# import asMultiPoint
+try:
+    from shapely import geometry# import asMultiPoint
+except ImportError:
+    geometry = None
 
 class SubStructure(BaseContainerObject):
 
@@ -20,6 +23,8 @@ class SubStructure(BaseContainerObject):
         self.append(faces)
 
     def as_polygon(self, axis=(0, 1)):
+        if geometry is None:
+            raise NotImplementedError('shapely module was not found')
         return geometry.asMultiPoint(
             self.as_vertice_array()[:,axis]
         ).convex_hull
