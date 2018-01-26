@@ -5,19 +5,39 @@ import shutil
 
 CALCPROP_BIN=r'"C:\Program Files\Remcom\Wireless InSite 3.2.0.3\bin\calc\calcprop"'
 
+def add_opt(opt, formatter):
+    if opt is not None:
+        return formatter.format(opt=opt)
+    else:
+        return ''
+
 class InSiteProject:
 
-    def __init__(self, path, output_dir, calcprop_bin=CALCPROP_BIN):
+    def __init__(self, setup_path, xml_path, output_dir, project_name='model', calcprop_bin=CALCPROP_BIN,
+                 wibatch_bin=None):
         """InSite project
-        :param path: path to the .setup file
+        :param setup_path: path to the .setup file
+        :param xml_path: path to the X3D xml path
         :param output_dir: where the .setup will store the results (normally the Study Area name)
         :param calcprop_bin: the path to InSite's calcprop binary
         """
-        self._path = path
+        self._setup_path = setup_path
+        self._xml_path = xml_path
         self._output_dir = output_dir
+        self._project_name = project_name
         self._calcprop_bin = calcprop_bin
+        self._wibatch_bin = wibatch_bin
 
-    def run(self, calc_mode=None, clean_run=None, delete_temp=None, memory=None, output_dir=None):
+    def run_x3d(self, output_dir):
+        cmd = ''
+        cmd += self._wibatch_bin
+        cmd += add_opt(output_dir, ' -out {opt}')
+        cmd += add_opt(self._xml_path, ' -f {opt}')
+        cmd += add_opt(self._project_name, ' -p {opt}')
+        logging.info('Running CMD: "{}"'.format(cmd))
+        subprocess.run(cmd, shell=True, check=True)
+
+    def run_calcprop(self, calc_mode=None, clean_run=None, delete_temp=None, memory=None, output_dir=None):
         """Run InSite simulation and store the results in output_dir
 
         :param calc_mode: New, AddTransmitters, AddReceivers, ChangeHeights,
@@ -30,18 +50,12 @@ class InSiteProject:
         :return: None
         """
         cmd = ''
-
-        def add_opt(opt, formatter):
-            if opt is not None:
-                return formatter.format(opt=opt)
-            else:
-                return ''
         cmd += self._calcprop_bin
         cmd += add_opt(calc_mode, ' --calc-mode={opt}')
         cmd += add_opt(clean_run, ' --clean-run')
         cmd += add_opt(delete_temp, ' --delete-temp')
         cmd += add_opt(memory, ' --memory={opt}')
-        cmd += add_opt(self._path, ' --project={opt}')
+        cmd += add_opt(self._setup_path, ' --project={opt}')
         logging.info('Running CMD: "{}"'.format(cmd))
         subprocess.run(cmd, shell=True, check=True)
         if output_dir is not None:

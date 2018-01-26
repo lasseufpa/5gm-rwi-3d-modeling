@@ -3,7 +3,7 @@
 from distutils.core import setup
 
 setup(name='rwimodeling',
-      version='1.0.1',
+      version='1.0.2',
       description='Modeling of Remcom Wireless InSite simulations',
       author='LASSE',
       author_email='pedosb@gmail.com',

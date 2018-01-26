@@ -4,10 +4,7 @@ from .errors import FormatError
 from .utils import match_or_error
 
 
-class VerticeList():
-
-    _begin_re = r'\s*nVertices\s+(?P<nv>\d+)\s*$'
-
+class BaseVerticeList:
     def __init__(self):
         self._vertice_array = None
         self.vertice_float_precision = 10
@@ -16,10 +13,14 @@ class VerticeList():
     def vertice_float_precision(self):
         return self._vertice_float_precision
 
+    @property
+    def float_format_string(self):
+        return '{{:.{0}f}}'.format(self.vertice_float_precision)
+
     @vertice_float_precision.setter
     def vertice_float_precision(self, value):
         self._vertice_float_precision = value
-        self._vertice_format_string = '{{:.{0}f}} {{:.{0}f}} {{:.{0}f}}\n'.format(value)
+        self._vertice_format_string = ' '.join([self.float_format_string for i in range(3)]) + '\n'
 
     @property
     def n_vertices(self):
@@ -27,18 +28,8 @@ class VerticeList():
             return 0
         return len(self._vertice_array)
 
-    def invert_direction(self):
-        self._vertice_array = np.flip(self._vertice_array, 0)
-
     def translate(self, v):
         self._vertice_array += v
-
-    def serialize(self):
-        mstr = ''
-        mstr += 'nVertices {}\n'.format(self.n_vertices)
-        for v in self._vertice_array:
-            mstr += self._vertice_format_string.format(*v)
-        return mstr
 
     def clear(self):
         self._vertice_array = None
@@ -55,6 +46,24 @@ class VerticeList():
         else:
             self._vertice_array = np.concatenate(
                 (self._vertice_array, np.array(v, ndmin=2)))
+
+
+class VerticeList(BaseVerticeList):
+
+    _begin_re = r'\s*nVertices\s+(?P<nv>\d+)\s*$'
+
+    def __init__(self):
+        BaseVerticeList.__init__(self)
+
+    def invert_direction(self):
+        self._vertice_array = np.flip(self._vertice_array, 0)
+
+    def serialize(self):
+        mstr = ''
+        mstr += 'nVertices {}\n'.format(self.n_vertices)
+        for v in self._vertice_array:
+            mstr += self._vertice_format_string.format(*v)
+        return mstr
 
     def from_file(infile, inst=None):
         if inst is None:
