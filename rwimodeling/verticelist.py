@@ -47,6 +47,20 @@ class BaseVerticeList:
             self._vertice_array = np.concatenate(
                 (self._vertice_array, np.array(v, ndmin=2)))
 
+    def rotate(self, angle):
+        """Rotate counterclockwise by a given angle around a given origin.
+
+        The angle should be given in degrees.
+        """
+        angle = np.radians(angle)
+
+        c = np.cos(angle)
+        s = np.sin(angle)
+        rot_mat = np.array([[c, -s, 0], [s, c, 0], [0, 0, 1]])
+
+        for i, v in enumerate(self._vertice_array):
+            self._vertice_array[i, :] = np.matmul(rot_mat, v)
+
 
 class VerticeList(BaseVerticeList):
 

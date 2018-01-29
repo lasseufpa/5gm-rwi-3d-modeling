@@ -40,6 +40,10 @@ class SubStructure(BaseContainerObject):
                     vertice_array = np.concatenate((vertice_array, face.vertice_array))
         return vertice_array
 
+    def rotate(self, angle):
+        for f in self.face_list:
+            f.rotate(angle)
+
     @property
     def _header(self):
         header_str = ''
