@@ -7,7 +7,7 @@ setup(name='rwimodeling',
       description='Modeling of Remcom Wireless InSite simulations',
       author='LASSE',
       author_email='pedosb@gmail.com',
-      url='https://gitlab.lasse.ufpa.br/software/python-machine-learning/rwi-3d-modeling',
+      url='https://github.com/lasseufpa/5gm-rwi-3d-modeling',
       packages=['rwimodeling'],
       requires=['numpy(>=1.14)']
       )
