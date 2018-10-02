@@ -13,6 +13,10 @@ def add_opt(opt, formatter):
 
 class InSiteProject:
 
+
+    '''
+    Pedro had a constructor in class InSiteProject that would keep the same files for running all simulations.
+    Better to first copy the files to the run folder and then invoke from there.
     def __init__(self, setup_path, xml_path, output_dir, project_name='model', calcprop_bin=CALCPROP_BIN,
                  wibatch_bin=None):
         """InSite project
@@ -27,17 +31,33 @@ class InSiteProject:
         self._project_name = project_name
         self._calcprop_bin = calcprop_bin
         self._wibatch_bin = wibatch_bin
+    '''
 
-    def run_x3d(self, output_dir):
+    def __init__(self, project_name='model', calcprop_bin=CALCPROP_BIN,
+                 wibatch_bin=None):
+        """InSite project
+        :param calcprop_bin: the path to InSite's calcprop binary
+        """
+        self._project_name = project_name
+        self._calcprop_bin = calcprop_bin
+        self._wibatch_bin = wibatch_bin
+
+
+    def run_x3d(self, xml_path, output_dir):
+        '''
+        :param setup_path: path to the .setup file
+        :param xml_path: path to the X3D xml path
+        :param output_dir: where the .setup will store the results (normally the Study Area name)
+        '''
         cmd = ''
         cmd += self._wibatch_bin
         cmd += add_opt(output_dir, ' -out {opt}')
-        cmd += add_opt(self._xml_path, ' -f {opt}')
+        cmd += add_opt(xml_path, ' -f {opt}')
         cmd += add_opt(self._project_name, ' -p {opt}')
         logging.info('Running CMD: "{}"'.format(cmd))
         subprocess.run(cmd, shell=True, check=True)
 
-    def run_calcprop(self, calc_mode=None, clean_run=None, delete_temp=None, memory=None, output_dir=None):
+    def run_calcprop(self, setup_path, calc_mode=None, clean_run=None, delete_temp=None, memory=None):
         """Run InSite simulation and store the results in output_dir
 
         :param calc_mode: New, AddTransmitters, AddReceivers, ChangeHeights,
@@ -55,11 +75,11 @@ class InSiteProject:
         cmd += add_opt(clean_run, ' --clean-run')
         cmd += add_opt(delete_temp, ' --delete-temp')
         cmd += add_opt(memory, ' --memory={opt}')
-        cmd += add_opt(self._setup_path, ' --project={opt}')
+        cmd += add_opt(setup_path, ' --project={opt}')
         logging.info('Running CMD: "{}"'.format(cmd))
         subprocess.run(cmd, shell=True, check=True)
-        if output_dir is not None:
-            shutil.move(self._output_dir, output_dir)
+        #if output_dir is not None:
+        #    shutil.move(self._output_dir, output_dir)
 
 if __name__=='__main__':
     logging.basicConfig(level=logging.INFO)
@@ -70,5 +90,5 @@ if __name__=='__main__':
     output_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)),
                               'oi')
     output_dir = None
-    project = InSiteProject(path, project_output_dir)
-    project.run(output_dir=output_dir)
+    project = InSiteProject()
+    project.run_calcprop(path)
