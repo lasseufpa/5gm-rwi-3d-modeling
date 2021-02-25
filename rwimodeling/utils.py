@@ -1,6 +1,7 @@
 import re
 
 from .errors import FormatError
+#from errors import FormatError
 
 
 def look_next_line(infile):
@@ -17,4 +18,4 @@ def match_or_error(exp, infile):
         return match
     else:
         raise FormatError(
-            'Excpected "{}", found "{}"'.format(exp, line))
+            'Expected "{}", found "{}"'.format(exp, line))

@@ -2,6 +2,10 @@ from .basecontainerobject import BaseContainerObject
 from .utils import match_or_error
 from .verticelist import VerticeList
 
+#from basecontainerobject import BaseContainerObject
+#from utils import match_or_error
+#from verticelist import VerticeList
+
 
 class Location(VerticeList, BaseContainerObject):
 
@@ -81,12 +85,17 @@ class TxRxFile(BaseContainerObject):
     def from_file(infile):
         inst = TxRxFile()
         BaseContainerObject.from_file(inst, infile)
+        print(inst.__dict__)
         return inst
 
 if __name__=='__main__':
-    with open('example/model.txrx') as infile:
+    with open('../example/model.txrx') as infile:
         #print(Location.from_file(infile).serialize())
         #print(TxRx.from_file(infile).serialize())
         txrx = TxRxFile.from_file(infile)
         txrx.serialize()
-        print(txrx['Rx'].location_list[0])
+        for child in txrx._child_list:
+            for antena in child._child_list:
+                print(antena.__dict__)
+        print('////')
+        #print(txrx['Rx'].location_list[0].__dict__)

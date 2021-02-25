@@ -2,6 +2,8 @@ import re
 
 from .errors import FormatError
 from .utils import match_or_error, look_next_line
+#from errors import FormatError
+#from utils import match_or_error, look_next_line
 
 MAX_LEN_NAME = 71
 
@@ -111,6 +113,7 @@ class BaseContainerObject(BaseObject):
         """
         self._header_str = ''
         # if _begin_re is defined it must match the first line and the processing ends
+        #print(self._begin_re)
         if self._begin_re is not None:
             match_or_error(self._begin_re, infile)
         # if _begin_re is not defined read until _end_header_re
@@ -157,8 +160,11 @@ class BaseContainerObject(BaseObject):
                 if re.match(self._end_re, line):
                     break
 
-    def _parse_content(self, infile):
-        child = self._child_type.from_file(infile)
+    def _parse_content(self, infile,mimo_id = -1):
+        if mimo_id == -1:
+            child = self._child_type.from_file(infile)
+        else:
+            child = self._child_type.from_file(infile, mimo_id)
         self.append(child)
 
     def __getitem__(self, key):
@@ -176,7 +182,7 @@ class BaseContainerObject(BaseObject):
             keys.append(child.name)
         return keys
 
-    def from_file(self, infile):
+    def from_file(self, infile, MIMO = False):
         """Parse entity
 
         Parse the head and then find childs defined by:
@@ -187,7 +193,10 @@ class BaseContainerObject(BaseObject):
         :return: entity instance
         """
         # consumes the entity header
+    
         self._parse_head(infile)
+        MIMO = MIMO
+        mimo_id = -1
         while True:
             line = look_next_line(infile)
             # are we searching for the beginning of the tail
@@ -202,4 +211,8 @@ class BaseContainerObject(BaseObject):
                     break
             # if it is not the start of the tail nor the end of the entity,
             # it is a child entity
-            self._parse_content(infile)
+            if MIMO:
+                mimo_id += 1
+                self._parse_content(infile, mimo_id=mimo_id)
+            else:
+                self._parse_content(infile)
