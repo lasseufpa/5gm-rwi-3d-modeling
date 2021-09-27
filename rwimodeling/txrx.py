@@ -85,7 +85,7 @@ class TxRxFile(BaseContainerObject):
     def from_file(infile):
         inst = TxRxFile()
         BaseContainerObject.from_file(inst, infile)
-        print(inst.__dict__)
+        #print(inst.__dict__)
         return inst
 
 if __name__=='__main__':
